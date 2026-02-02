@@ -2,18 +2,35 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 const wss = new WebSocketServer({ port: 8080 });
 
-let userCount = 0;
-let allSockets = new Map<WebSocket, string>;
+let allSockets = new Map<WebSocket, string>();
 
+wss.on('connection', (socket) => {
 
-wss.on('connection', (ws) => {
-    console.log(`User connected. Total users: ${userCount}`);
+    socket.on('message', (message) => {
+        // message is now an object
+        // message is string so we need to parse it into a object.
 
-    ws.on('message', (message) => {
+        const parsedMessage = JSON.parse(message.toString());
+        if (parsedMessage.type === "join") {
+            allSockets.set(socket, parsedMessage.payload.roomId);
+        }
+        if (parsedMessage.type === "chat") {
+            const currentUserRoom = allSockets.get(socket);
+
+            if (!currentUserRoom) return;
+
+            for (const [socket, roomId] of allSockets.entries()) {
+                if (roomId === currentUserRoom && socket.readyState === WebSocket.OPEN) {
+                    socket.send(parsedMessage.payload.message);
+                }
+            }
+        }
+        console.log(allSockets);
+
     });
 
-    ws.on('close', () => {
+    socket.on('close', () => {
     });
 
-    ws.on('error', console.error);
+    socket.on('error', console.error);
 });
